@@ -13,7 +13,7 @@ const {
   getTransactionDiff,
   getTransactionPercentDiff,
   getTransactionCurrentBalance
-} = require('../../utils/calc');
+} = require('../utils/calc');
 
 const Client = require('coinbase').Client;
 
@@ -22,54 +22,76 @@ const client = new Client({
   'apiSecret': process.env.COINBASE_APISECRET
 });
 
+
+/**
+ * Portfolio Overview
+ * Gets an aggregate calcs.
+ *
+ */
 router.get('/overview', (req, res) => {
-  //Get the accounts - each coin type is an account.
+  // Check cache. TTL - 5 minutes
   return client.getAccounts({}, (err, resp) => {
-    if (err) {
-      console.log(err)
-      return res.json({ err });
-    }
+      if (err) return res.json({ data: [] });
 
-    //Foreach account get the transactions for purchasing more X coin
-    return async.map(resp, (account, cb) => {
-      account.getTransactions({}, (err, transResp) => {
-        if (err) return cb(null);
+      //Foreach account get the transactions for purchasing more X coin
+      return async.map(resp, (account, cb) => {
+        account.getTransactions({}, (err, transResp) => {
+          if (err) return cb(null);
 
-        const data = {
-          id: account.id,
-          name: account.name,
-          currency: account.currency,
-          coinBalance: account.balance,
-          nativeBalance: account.native_balance,
-          transactions: transResp
-        };
+          const data = {
+            id: account.id,
+            name: account.name,
+            currency: account.currency,
+            coinBalance: account.balance,
+            nativeBalance: account.native_balance,
+            transactions: transResp
+          };
 
-        cb(null, data);
-      });
-    }, (err, results) => {
-
-      // Do Calculations
-      async.map(results, (account, cb) => {
-        getBalance(account, (balance) => {
-          getDifference(account, (difference) => {
-            getPercentDifference(account, (perDiff) => {
-              const investment = {
-                currency: account.currency,
-                totalInvested: getTotalInvested(account.transactions),
-                totalCoins: getTotalCoins(account.transactions),
-                balance,
-                difference,
-                percentDifference: perDiff
-              };
-              return cb(err, investment);
-            })
-          })
+          cb(null, data);
         });
-      }, (err, data) => {
-        return res.json(data || {});
+      }, (err, results) => {
+
+        // Do Calculations
+        async.map(results, (account, cb) => {
+          const currency = account.currency;
+          const transactions = account.transactions || [];
+          let lclBalance, lclDiff, lclPerDiff, lclTotalInvested;
+
+           return getBalance(currency, transactions)
+             .then(balance => {
+               lclBalance = balance;
+               return getDifference(currency, transactions);
+             })
+             .then(difference => {
+               lclDiff = difference;
+               return getPercentDifference(currency, transactions)
+             })
+             .then((percentDifference) => {
+               lclPerDiff = percentDifference;
+               return getTotalInvested(transactions)
+             })
+             .then((totalInvested) => {
+               lclTotalInvested = totalInvested;
+               return getTotalCoins(transactions);
+             })
+             .then(totalCoins => {
+               const investment = {
+                 currency: currency,
+                 totalInvested: lclTotalInvested,
+                 totalCoins: totalCoins,
+                 balance: lclBalance,
+                 difference: lclDiff,
+                 percentDifference: lclPerDiff
+               };
+
+               return cb(null, investment);
+             });
+
+        }, (err, data) => {
+          return res.json(data || {});
+        });
       });
-    });
-  });
+    })
 });
 
 // This might be transactions instead of investments.

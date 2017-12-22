@@ -1,39 +1,37 @@
-const Client = require('coinbase').Client;
-
-const client = new Client({
-  'apiKey': process.env.COINBASE_APIKEY,
-  'apiSecret': process.env.COINBASE_APISECRET
-});
+const getExchangeRates = require('./exchange').getExchangeRates;
 
 
 /**
  * Get the total amount invested using
- * an accounts transactions logs.
+ * an account's transactions logs.
  *
  * @param transactions
  * @returns {number}
  */
-const getTotalInvested = (transactions) => {
-  if (!transactions) return 0.00;
+const getTotalInvested = (transactions) => new Promise((resolve, reject) => {
+  if (!transactions) return resolve(0.00);
+
   let amount = 0;
   transactions.forEach(trans => {
-    if (trans.type == 'buy' || trans.type == 'send') {
+    if (trans.type == 'buy' || trans.type == 'send')
       amount += Number.parseFloat(trans.native_amount.amount);
-    }
-  })
+  });
 
-  return amount;
-};
+  return resolve(amount);
+});
+
 
 /**
- * Get the total number of coin per account,
- * using account transactions.
+ * Get the total number of coin per the user has,
+ * using an account's transactions.  Should already
+ * be filtered by the coin (currency) type.
  *
  * @param transactions
  * @returns {number}
  */
-const getTotalCoins = (transactions) => {
-  if (!transactions) return 0;
+const getTotalCoins = (transactions) => new Promise((resolve, reject) => {
+  if (!transactions) return resolve(0);
+
   let amount = 0;
   transactions.forEach(trans => {
     if (trans.type == 'buy' || trans.type == 'send') {
@@ -44,81 +42,134 @@ const getTotalCoins = (transactions) => {
     }
   });
 
-  return amount;
-};
+  return resolve(amount);
+});
+
 
 /**
  * Get the balance for each account/coin
+ *
+ * @param account
+ * @return balance In Native Currency (Whatever the usr has set it to)
+ */
+const getBalance = (currency, transactions) => new Promise((resolve, reject) => {
+
+  if (!transactions.length) return resolve(0);
+
+  let lclRate;
+
+  return getExchangeRates(currency)
+    .then(rate => (lclRate = rate))
+    .then(() => getTotalCoins(transactions))
+    .then(totalCoins => {
+      const balance = lclRate * totalCoins;
+      return resolve(balance);
+    })
+    .catch(err => {
+      console.error(err);
+      return resolve(0);
+    });
+});
+
+
+/**
+ * Get the difference. CurrentBalance - Balance Invested
+ *
  * @param account
  */
-const getBalance = (account,  cb) => {
+const getDifference = (currency, transactions) => new Promise((resolve, reject) => {
+  if (!transactions.length) return resolve(0);
 
-  // Get the coins I've bought
-  const currency = account.currency;
+  let lclCurrentBalance;
 
-  return client.getExchangeRates({ currency }, function(err, rates) {
-    const rate = rates.data.rates.USD;
-    const totalCoins = getTotalCoins(account.transactions);
+  return getBalance(currency, transactions)
+    .then(currentBalance => {
+      lclCurrentBalance = currentBalance;
+      return getTotalInvested(transactions)
+    })
+    .then(totalnvested => {
+      const diff = lclCurrentBalance - totalnvested;
+      return resolve(diff);
+    })
+    .catch(err => {
+      console.error(err);
+      return resolve(0);
+    })
+});
 
-    const balance = rate*totalCoins;
-    return cb(balance);
-  });
-
-};
-
-/**
- * CurrentBalance - Balance Invested
- * When the current balance is below the invested amount it turns negative.
- *
- */
-const getDifference = (account, cb) => {
-  return getBalance(account, (currentBalance) => {
-    const invested = getTotalInvested(account.transactions);
-    const diff = currentBalance - invested
-    return cb(diff)
-  })
-};
 
 /**
- * This cant be right.  The % diff is not on the total invested but
- * more on each NEW buy transaction since the % rates differ.
+ * Global percent difference on what the user has in the portfolio
+ * and how much its made.
  *
  * @param account
  * @param cb
  */
-const getPercentDifference = (account, cb) => {
-  getDifference(account, (increase) => {
-    const perDiff = (increase / getTotalInvested(account.transactions)) * 100;
-    return cb(perDiff);
-  })
-}
+const getPercentDifference = (currency, transactions) => new Promise((resolve, reject) => {
+  if (!transactions.length) return resolve(0);
 
-const getTransactionCurrentBalance = (currency, coinAmount) => {
-  return new Promise((resolve) => {
-    console.log(currency)
-    return client.getExchangeRates({ currency }, (err, rates) => {
-      console.log(rates)
-      const rate = rates.data.rates.USD;
+  let lclDifference;
 
-      console.log("rate", rate);
+  return getDifference(currency, transactions)
+    .then((difference) => {
+      lclDifference = difference;
+      return getTotalInvested(transactions)
+    })
+    .then((totalInvested) => {
+      const perDiff = (lclDifference / totalInvested) * 100;
+      return resolve(perDiff);
+    })
+    .catch(err => {
+      console.log(err);
+      return resolve(0);
+    })
+});
 
-      const balance = rate*coinAmount;
-      console.log("balance", balance);
-      return resolve(balance);
-    });
-  })
-};
+/**
+ * Get the current balance for a single transaction.
+ *
+ * @param currency Which crypto currency is used.
+ * @param coinAmount How much crypto the user holds for this currency.
+ */
+const getTransactionCurrentBalance = (currency, coinAmount) =>
+  new Promise((resolve, reject) => {
+    return getExchangeRates(currency)
+      .then(rate => {
+        const balance = rate * coinAmount;
+        return resolve(balance);
+      })
+      .catch(err => {
+        console.error(err);
+        return resolve(0);
+      });
+  });
 
-const getTransactionPercentDiff = (currentCoinBalance, initInvestment) => {
-  const diff = currentCoinBalance - initInvestment;
-  const perDiff = (diff / initInvestment) * 100;
-  return perDiff;
-}
 
-const getTransactionDiff = (currentCoinBalance, initInvestment) => {
-  const diff = currentCoinBalance - initInvestment;
-  return diff;
-}
+/**
+ * Get the percent difference for a single transaction.
+ *
+ * @param currentCoinBalance
+ * @param initInvestment
+ */
+const getTransactionPercentDiff = (currentCoinBalance, initInvestment) =>
+  new Promise((resolve, reject) => {
+    const diff = currentCoinBalance - initInvestment;
+    const perDiff = (diff / initInvestment) * 100;
+
+    return resolve(perDiff);
+  });
+
+
+
+/**
+ * Calculate the difference for 1 transaction.
+ *
+ * @param currentCoinBalance
+ * @param initInvestment
+ * @returns {Promise}
+ */
+const getTransactionDiff = (currentCoinBalance, initInvestment) =>
+  new Promise((resolve, reject) => resolve(currentCoinBalance - initInvestment));
 
 
 module.exports = {
@@ -130,5 +181,5 @@ module.exports = {
   getTransactionCurrentBalance,
   getTransactionPercentDiff,
   getTransactionDiff
-}
+};
 
