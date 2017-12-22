@@ -122,9 +122,19 @@ router.get('/list', (req, res) => {
           if (t.type !== 'buy') return cb2();
           const currency = t.amount.currency;
           const amount = t.amount.amount;
-          getTransactionCurrentBalance(currency, amount)
-            .then(curentBalance => {
-              cb2(null, {
+          let lclCurrentBalance, lclDifference;
+
+          return getTransactionCurrentBalance(currency, amount)
+            .then(currentBalance => {
+              lclCurrentBalance = currentBalance;
+              return getTransactionDiff(currentBalance, t.native_amount.amount)
+            })
+            .then((difference) => {
+              lclDifference = difference;
+              return getTransactionPercentDiff(lclCurrentBalance, t.native_amount.amount)
+            })
+            .then(percentDiff => {
+              return cb2(null, {
                 id: t.id,
                 type: t.type,
                 status: t.status,
@@ -132,11 +142,12 @@ router.get('/list', (req, res) => {
                 amount: amount,
                 nativeAmount: t.native_amount.amount,
                 createdAt: t.created_at,
-                currentBalance: curentBalance,
-                difference: getTransactionDiff(curentBalance, t.native_amount.amount),
-                percentDifference: getTransactionPercentDiff(curentBalance, t.native_amount.amount)
+                currentBalance: lclCurrentBalance,
+                difference: lclDifference,
+                percentDifference: percentDiff
               });
             })
+
         }, (err, data2) => {
           data2 = data2.filter(item => item != null);
           cb1(err, data2)
