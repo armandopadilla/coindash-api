@@ -27,6 +27,15 @@ const client = new Client({
  * Portfolio Overview
  * Gets an aggregate calcs.
  *
+ * // Get accounts
+ // Foreach account get the transactions for purchasing more X coin
+ // For each transaction
+ //  Get The total invested. (Done)
+ //  Get the total coins I own (Done)
+ //  Get the current $$ * total coins bought. (Done)
+ //  calculate the gain/loss (Aggregate)
+ //  calculate the profit (Aggregate)
+ *
  */
 router.get('/overview', (req, res) => {
   // Check cache. TTL - 5 minutes
@@ -94,27 +103,33 @@ router.get('/overview', (req, res) => {
     })
 });
 
-// This might be transactions instead of investments.
+
+
+/**
+ * This might be transactions instead of investments.
+ */
 router.get('/list', (req, res) => {
   return client.getAccounts({}, (err, resp) => {
-    //Foreach account get the transactions for purchasing more X coin
+
     return async.map(resp, (account, cb) => {
       return account.getTransactions({}, (err, transResp) => cb(null, transResp));
     }, (err, results) => {
 
-      // Do Calculations and create object
+      // Do Calculations and create object if its a buy ONLY.
       async.map(results, (trans, cb1) => {
         async.map(trans, (t, cb2) => {
 
           if (t.type !== 'buy') return cb2();
-          getTransactionCurrentBalance(t.amount.currency, t.amount.amount)
+          const currency = t.amount.currency;
+          const amount = t.amount.amount;
+          getTransactionCurrentBalance(currency, amount)
             .then(curentBalance => {
               cb2(null, {
                 id: t.id,
                 type: t.type,
                 status: t.status,
-                currency: t.amount.currency,
-                amount: t.amount.amount,
+                currency: currency,
+                amount: amount,
                 nativeAmount: t.native_amount.amount,
                 createdAt: t.created_at,
                 currentBalance: curentBalance,
@@ -137,13 +152,3 @@ router.get('/list', (req, res) => {
 
 
 module.exports = router;
-
-
-// Get accounts
-// Foreach account get the transactions for purchasing more X coin
-// For each transaction
-//  Get The total invested. (Done)
-//  Get the total coins I own (Done)
-//  Get the current $$ * total coins bought. (Done)
-//  calculate the gain/loss (Aggregate)
-//  calculate the profit (Aggregate)

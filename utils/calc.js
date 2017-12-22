@@ -1,6 +1,5 @@
 const getExchangeRates = require('./exchange').getExchangeRates;
 
-
 /**
  * Get the total amount invested using
  * an account's transactions logs.
@@ -158,7 +157,6 @@ const getTransactionPercentDiff = (currentCoinBalance, initInvestment) =>
 
     return resolve(perDiff);
   });
-
 
 
 /**
