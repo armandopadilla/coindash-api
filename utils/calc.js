@@ -1,4 +1,6 @@
 const getExchangeRates = require('./exchange').getExchangeRates;
+const UserModel = require('../schemas/users');
+
 
 /**
  * Get the total amount invested using
@@ -170,6 +172,24 @@ const getTransactionDiff = (currentCoinBalance, initInvestment) =>
   new Promise((resolve, reject) => resolve(currentCoinBalance - initInvestment));
 
 
+/**
+ * Get the warning level for a specific transaction.
+ *
+ * @param percentDiff
+ */
+const getTransactionLevel = (percentDiff) => new Promise((resolve, reject) => {
+  UserModel.findOne({firstName: 'Armando'}, (err, data) => {
+    const danger = data.levels.danger;
+    const onTrack = data.levels.onTrack;
+
+    let level = 'warning';
+    if (percentDiff >= onTrack) level = 'onTrack'
+    if (percentDiff <= danger) level = 'danger';
+
+    return resolve(level);
+  })
+});
+
 module.exports = {
   getTotalInvested,
   getTotalCoins,
@@ -178,6 +198,7 @@ module.exports = {
   getPercentDifference,
   getTransactionCurrentBalance,
   getTransactionPercentDiff,
-  getTransactionDiff
+  getTransactionDiff,
+  getTransactionLevel
 };
 

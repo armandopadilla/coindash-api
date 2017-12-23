@@ -12,7 +12,8 @@ const {
   getPercentDifference,
   getTransactionDiff,
   getTransactionPercentDiff,
-  getTransactionCurrentBalance
+  getTransactionCurrentBalance,
+  getTransactionLevel
 } = require('../utils/calc');
 
 const Client = require('coinbase').Client;
@@ -64,7 +65,7 @@ router.get('/overview', (req, res) => {
         async.map(results, (account, cb) => {
           const currency = account.currency;
           const transactions = account.transactions || [];
-          let lclBalance, lclDiff, lclPerDiff, lclTotalInvested;
+          let lclBalance, lclDiff, lclPerDiff, lclTotalInvested, lclTotalCoins;
 
            return getBalance(currency, transactions)
              .then(balance => {
@@ -84,13 +85,18 @@ router.get('/overview', (req, res) => {
                return getTotalCoins(transactions);
              })
              .then(totalCoins => {
+               lclTotalCoins = totalCoins;
+               return getTransactionLevel(lclPerDiff);
+             })
+             .then(level => {
                const investment = {
                  currency: currency,
                  totalInvested: lclTotalInvested,
-                 totalCoins: totalCoins,
+                 totalCoins: lclTotalCoins,
                  balance: lclBalance,
                  difference: lclDiff,
-                 percentDifference: lclPerDiff
+                 percentDifference: lclPerDiff,
+                 level
                };
 
                return cb(null, investment);
@@ -122,7 +128,7 @@ router.get('/list', (req, res) => {
           if (t.type !== 'buy') return cb2();
           const currency = t.amount.currency;
           const amount = t.amount.amount;
-          let lclCurrentBalance, lclDifference;
+          let lclCurrentBalance, lclDifference, lclPercentDiff;
 
           return getTransactionCurrentBalance(currency, amount)
             .then(currentBalance => {
@@ -134,6 +140,10 @@ router.get('/list', (req, res) => {
               return getTransactionPercentDiff(lclCurrentBalance, t.native_amount.amount)
             })
             .then(percentDiff => {
+              lclPercentDiff = percentDiff;
+              return getTransactionLevel(lclPercentDiff)
+            })
+            .then(level => {
               return cb2(null, {
                 id: t.id,
                 type: t.type,
@@ -144,7 +154,8 @@ router.get('/list', (req, res) => {
                 createdAt: t.created_at,
                 currentBalance: lclCurrentBalance,
                 difference: lclDifference,
-                percentDifference: percentDiff
+                percentDifference: lclPercentDiff,
+                level
               });
             })
 
