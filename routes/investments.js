@@ -1,0 +1,165 @@
+const express = require('express');
+const router = express.Router();
+const axios = require('axios');
+const async = require('async');
+const _ = require('lodash');
+
+const {
+  getTotalInvested,
+  getTotalCoins,
+  getBalance,
+  getDifference,
+  getPercentDifference,
+  getTransactionDiff,
+  getTransactionPercentDiff,
+  getTransactionCurrentBalance
+} = require('../utils/calc');
+
+const Client = require('coinbase').Client;
+
+const client = new Client({
+  'apiKey': process.env.COINBASE_APIKEY,
+  'apiSecret': process.env.COINBASE_APISECRET
+});
+
+
+/**
+ * Portfolio Overview
+ * Gets an aggregate calcs.
+ *
+ * // Get accounts
+ // Foreach account get the transactions for purchasing more X coin
+ // For each transaction
+ //  Get The total invested. (Done)
+ //  Get the total coins I own (Done)
+ //  Get the current $$ * total coins bought. (Done)
+ //  calculate the gain/loss (Aggregate)
+ //  calculate the profit (Aggregate)
+ *
+ */
+router.get('/overview', (req, res) => {
+  // Check cache. TTL - 5 minutes
+  return client.getAccounts({}, (err, resp) => {
+      if (err) return res.json({ data: [] });
+
+      //Foreach account get the transactions for purchasing more X coin
+      return async.map(resp, (account, cb) => {
+        account.getTransactions({}, (err, transResp) => {
+          if (err) return cb(null);
+
+          const data = {
+            id: account.id,
+            name: account.name,
+            currency: account.currency,
+            coinBalance: account.balance,
+            nativeBalance: account.native_balance,
+            transactions: transResp
+          };
+
+          cb(null, data);
+        });
+      }, (err, results) => {
+
+        // Do Calculations
+        async.map(results, (account, cb) => {
+          const currency = account.currency;
+          const transactions = account.transactions || [];
+          let lclBalance, lclDiff, lclPerDiff, lclTotalInvested;
+
+           return getBalance(currency, transactions)
+             .then(balance => {
+               lclBalance = balance;
+               return getDifference(currency, transactions);
+             })
+             .then(difference => {
+               lclDiff = difference;
+               return getPercentDifference(currency, transactions)
+             })
+             .then((percentDifference) => {
+               lclPerDiff = percentDifference;
+               return getTotalInvested(transactions)
+             })
+             .then((totalInvested) => {
+               lclTotalInvested = totalInvested;
+               return getTotalCoins(transactions);
+             })
+             .then(totalCoins => {
+               const investment = {
+                 currency: currency,
+                 totalInvested: lclTotalInvested,
+                 totalCoins: totalCoins,
+                 balance: lclBalance,
+                 difference: lclDiff,
+                 percentDifference: lclPerDiff
+               };
+
+               return cb(null, investment);
+             });
+
+        }, (err, data) => {
+          return res.json(data || {});
+        });
+      });
+    })
+});
+
+
+
+/**
+ * This might be transactions instead of investments.
+ */
+router.get('/list', (req, res) => {
+  return client.getAccounts({}, (err, resp) => {
+
+    return async.map(resp, (account, cb) => {
+      return account.getTransactions({}, (err, transResp) => cb(null, transResp));
+    }, (err, results) => {
+
+      // Do Calculations and create object if its a buy ONLY.
+      async.map(results, (trans, cb1) => {
+        async.map(trans, (t, cb2) => {
+
+          if (t.type !== 'buy') return cb2();
+          const currency = t.amount.currency;
+          const amount = t.amount.amount;
+          let lclCurrentBalance, lclDifference;
+
+          return getTransactionCurrentBalance(currency, amount)
+            .then(currentBalance => {
+              lclCurrentBalance = currentBalance;
+              return getTransactionDiff(currentBalance, t.native_amount.amount)
+            })
+            .then((difference) => {
+              lclDifference = difference;
+              return getTransactionPercentDiff(lclCurrentBalance, t.native_amount.amount)
+            })
+            .then(percentDiff => {
+              return cb2(null, {
+                id: t.id,
+                type: t.type,
+                status: t.status,
+                currency: currency,
+                amount: amount,
+                nativeAmount: t.native_amount.amount,
+                createdAt: t.created_at,
+                currentBalance: lclCurrentBalance,
+                difference: lclDifference,
+                percentDifference: percentDiff
+              });
+            })
+
+        }, (err, data2) => {
+          data2 = data2.filter(item => item != null);
+          cb1(err, data2)
+        });
+
+      }, (err, data) => {
+        data = _.flattenDeep(data);
+        return res.json(data || {});
+      });
+    });
+  });
+});
+
+
+module.exports = router;

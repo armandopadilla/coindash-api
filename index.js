@@ -3,6 +3,7 @@ require('dotenv').config()
 const express = require('express');
 
 const investments = require('./routes/investments')
+const settings = require('./routes/settings')
 
 const app = express();
 
@@ -13,9 +14,10 @@ app.use((req, res, next) => {
 });
 
 app.use('/investments', investments);
+app.use('/settings', settings);
 
 app.listen(3000, () => {
-  console.log("Lets roll!");
+  console.log("Lets roll on port 3000!......");
 });
 
 // API
