@@ -4,10 +4,30 @@ provider:
   runtime: nodejs6.10
   stage: dev
   regions: us-east
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "ec2:CreateNetworkInterface"
+        - "ec2:DescribeNetworkInterfaces"
+        - "ec2:DetachNetworkInterface"
+        - "ec2:DeleteNetworkInterface"
+      Resource: "*"
+  vpc:
+    securityGroupIds:
+      - sg-e54cad91
+    subnetIds:
+      - subnet-59991e76
+      - subnet-df9fd294
 
 functions:
   app:
     handler: index.handler
+    DependsOn: IamPolicyLambdaExecution
     events:
       - http: ANY /
       - http: 'ANY {proxy+}'
+    environment:
+      MONGO_HOST: ''
+      MONG_DB: ''
+      COINBASE_APIKEY: ''
+      COINBASE_APISECRET: ''
