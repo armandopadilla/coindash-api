@@ -9,10 +9,13 @@ const client = new Client({
 const getExchangeRates = (currency, nativeCurrency) =>
   new Promise((resolve, reject) => {
 
+  console.log("currency", currency)
     nativeCurrency = (nativeCurrency) ? nativeCurrency : 'USD';
 
     // Check cache - TTL = 3 minute
     return client.getExchangeRates({ currency }, (err, rates) => {
+      console.error(err)
+      console.log(rates.data)
       const rate = rates.data.rates[nativeCurrency];
       return resolve(rate);
     });

@@ -13,13 +13,17 @@
   "dependencies": {
     "async": "^2.6.0",
     "axios": "^0.17.1",
+    "bcryptjs": "^2.4.3",
     "body-parser": "^1.18.2",
     "coinbase": "^2.0.6",
     "dotenv": "^4.0.0",
     "express": "^4.16.2",
+    "install": "^0.10.2",
+    "jsonwebtoken": "^8.1.0",
     "lodash": "^4.17.4",
     "moment": "^2.20.1",
     "mongoose": "^4.13.7",
+    "npm": "^5.6.0",
     "serverless-http": "^1.5.2",
     "validator": "^9.2.0"
   },

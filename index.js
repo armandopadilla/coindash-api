@@ -19,6 +19,7 @@ db.on('error', (err) => {
 const investments = require('./routes/investments');
 const settings = require('./routes/settings');
 const index = require('./routes/index');
+const linkAccounts = require('./routes/linkaccount');
 
 const app = express();
 
@@ -29,13 +30,14 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   next();
 });
 
 app.use('/investments', investments);
 app.use('/settings', settings);
 app.use('/', index);
+app.use('/link-account', linkAccounts);
 
 app.get('/health', (req, res) => {
   // Check we can talk to the net.
@@ -43,18 +45,18 @@ app.get('/health', (req, res) => {
   return axios.get('http://www.google.com').then(resp => {
     let status = 'FAILED';
     if (resp.status === 200) status = 'OK';
-    console.log('Internet Access: '+status);
     // Check we can talk to mongo
     res.json({ internetAccess: status });
-  });
+  }).catch(err => console.error(err));
 })
 
-//module.exports.handler = serverless(app);
+module.exports.handler = serverless(app);
 
-
+/*
 app.listen(3000, () => {
   console.log("Lets roll on port 3000!......");
-});
+});*/
+
 
 // API
   // init - will pull all the data we need to play with on log in
