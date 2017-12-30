@@ -1,4 +1,4 @@
-service: "crypto-api"
+service: "crypto-api2"
 provider:
   name: aws
   runtime: nodejs6.10
@@ -14,10 +14,10 @@ provider:
       Resource: "*"
   vpc:
     securityGroupIds:
-      - sg-e54cad91
+      - sg-2b29de5f
     subnetIds:
-      - subnet-59991e76
-      - subnet-df9fd294
+      - subnet-f50c8cda
+      - subnet-b13d73fa
 
 functions:
   app:
@@ -27,7 +27,4 @@ functions:
       - http: ANY /
       - http: 'ANY {proxy+}'
     environment:
-      MONGO_HOST: ''
-      MONG_DB: ''
-      COINBASE_APIKEY: ''
-      COINBASE_APISECRET: ''
+

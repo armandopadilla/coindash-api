@@ -177,8 +177,8 @@ const getTransactionDiff = (currentCoinBalance, initInvestment) =>
  *
  * @param percentDiff
  */
-const getTransactionLevel = (percentDiff) => new Promise((resolve, reject) => {
-  UserModel.findOne({firstName: 'Armando'}, (err, data) => {
+const getTransactionLevel = (userId, percentDiff) => new Promise((resolve, reject) => {
+  return UserModel.findOne({ _id: userId }, (err, data) => {
     const danger = data.levels.danger;
     const onTrack = data.levels.onTrack;
 
