@@ -17,12 +17,18 @@ module.exports = {
     INVALID_USER: 'Invalid user.',
     INTERNAL_SERVER_ERROR: 'System is currently down. Try again later.',
     EXCHANGE_NOT_SET: 'Exchange must be set',
-    USER_ID_NOT_SET: 'User id was not set'
+    USER_ID_NOT_SET: 'User id was not set',
+    INVALID_JWT: 'Account could not be found.',
+    INVALID_COINBASE_CODE: 'Coinbase code not supplied.',
+    INVALID_STATE: 'No state supplied.',
+    COINBASE_GENERAL_ERROR: 'Coinbase encountered a problem.',
+    EXPIRED_JWT: 'Session has expired,'
   },
   webURL: 'http://crypto-manager-web.s3-website-us-west-1.amazonaws.com',
   exchanges: {
     coinbase: {
       oauthURL: 'https://www.coinbase.com/oauth/authorize',
+      oauthTokenURL: 'https://www.coinbase.com/oauth/token',
       scope: 'wallet:accounts:read,wallet:transactions:read'
     }
   }

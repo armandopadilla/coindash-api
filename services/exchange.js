@@ -1,4 +1,7 @@
 const constants = require('../constants');
+const UserModel = require('../schemas/users');
+const qs = require('qs');
+const axios = require('axios');
 
 /**
  * Refresh the access token for a specific user.
@@ -12,8 +15,12 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
     if (!exchange) return reject(constants.errors.EXCHANGE_NOT_SET);
     if (!userId) return reject(constants.errors.USER_ID_NOT_SET);
 
+    console.log("exchange", exchange)
+    console.log("userId", userId)
+    console.log("refreshToken", refreshToken)
+
     // Refresh the token
-    const params = constants.exchanges.coinbase.oauthURL+'?'+qs.stringify({
+    const params = constants.exchanges.coinbase.oauthTokenURL+'?'+qs.stringify({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
         client_id: process.env.COINBASE_CLIENT_ID,
@@ -22,15 +29,17 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
         account: 'all'
       });
 
+    console.log("what to call", params);
     return axios.post(params)
       .then(resp => {
+        console.log("refresh_token resp", resp);
         const {
           access_token: accessToken,
           token_type: tokenType,
           expires_in: expiresIn,
           refresh_token: refreshToken,
           scope
-        } = res.data;
+        } = resp.data;
 
         const updateData = {
           coinbase: {
@@ -44,11 +53,12 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
         };
 
         // save it to the db.
-        return UserModel.update({ _id: userId }, updateData, (err, user) => {
-          if (err) return reject(constants.errors.INVALID_USER);
+        return UserModel.update({ _id: userId }, updateData, (error, user) => {
+          if (error) return reject(constants.errors.INVALID_USER);
+          console.log(user);
           return resolve();
         });
-      });
+      }).catch(error => reject(error.message));
 
   });
 };

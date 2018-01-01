@@ -27,4 +27,11 @@ functions:
       - http: ANY /
       - http: 'ANY {proxy+}'
     environment:
+      MONGO_HOST: ''
+      MONGO_DB: ''
+      COINBASE_APIKEY: ''
+      COINBASE_APISECRET: ''
+      COINBASE_CLIENT_ID: ''
+      COINBASE_CLIENT_SECRET: ''
+      APP_SECRET: ''
 

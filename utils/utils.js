@@ -25,7 +25,6 @@ const getJWT = (req) => {
  */
 const isValidJWT = (jwtData) => {
   if (!jwtData) return false;
-
   return jwt.verify(jwtData, process.env.APP_SECRET, (err, decoded) => {
     if (err) return false;
     return decoded;

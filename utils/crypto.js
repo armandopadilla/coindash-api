@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const ENCRYPT_KEY = 'asdf';
+const ENCRYPT_KEY = "'x[z&7[J.H&rf}Zg(s3b5Jw'U226dTdi";
 const IV_LENGTH = 16;
 
 /**
@@ -10,7 +10,6 @@ const IV_LENGTH = 16;
  * @returns {string}
  */
 const encryptData = (data) => {
-
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv('aes-256-cbc', new Buffer(ENCRYPT_KEY), iv);
   let encrypted = cipher.update(data);
@@ -30,9 +29,9 @@ const decryptData = (encryptedData) => {
   const iv = new Buffer(textParts.shift(), 'hex');
   const encryptedText = new Buffer(textParts.join(':'), 'hex');
   const decipher = crypto.createDecipheriv('aes-256-cbc', new Buffer(ENCRYPT_KEY), iv);
-  let decypted = decipher.update(encryptedText);
+  let decrypted = decipher.update(encryptedText);
 
-  decypted = Buffer.concat([decypted, decipher.final()]);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
   return decrypted.toString();
 };
 

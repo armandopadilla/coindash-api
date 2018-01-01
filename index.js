@@ -48,12 +48,12 @@ app.get('/health', (req, res) => {
   }).catch(err => console.error(err));
 })
 
-//module.exports.handler = serverless(app);
+module.exports.handler = serverless(app);
 
-
+/*
 app.listen(3000, () => {
   console.log("Lets roll on port 3000!......");
-});
+});*/
 
 
 // API

@@ -86,7 +86,7 @@ router.post('/login', (req, res) => {
     if(!bcrypt.compareSync(password, user.password)) return resError400(res, constants.errors.INVALID_LOGIN);
 
     // All good - Create token and determine if user needs to lingk account with coinbase.
-    const data = encryptData({ email, id: user.id });
+    const data = encryptData(JSON.stringify({ email, id: user.id }));
     const token = jwt.sign({ exp: Math.floor(Date.now() / 1000) + (60 * 60), data }, process.env.APP_SECRET);
 
     // Check if the user should be sent to coinbase
@@ -103,7 +103,7 @@ router.post('/login', (req, res) => {
     else if(user.coinbase) {
       return ExchangeService.refreshAccessToken('coinbase', user.id, user.coinbase.refreshToken)
         .then(() => resSuccess200(res, { toCoinbase, token }))
-        .catch(error => resError400(res, constants.errors.INVALID_USER));
+        .catch(error => resError400(res, error.message));
     }
     else {
       return resError400(res, constants.errors.INVALID_USER);
