@@ -6,6 +6,11 @@ const _ = require('lodash');
 
 const UserModel = require('../schemas/users');
 const utils = require('../utils/utils');
+const { decryptData } = require('../utils/crypto');
+const {
+  resError400,
+  resSuccess200
+} = require('../utils/responseHandler');
 
 const {
   getTotalInvested,
@@ -39,24 +44,21 @@ router.get('/overview', (req, res) => {
   const jwt = utils.getJWT(req);
 
   let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return res.json({
-    status: 'RELOGIN_NEEDED'
-  });
+  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
 
-  const email = decodedData.data.email;
-  return UserModel.findOne({ email }, (err, user) => {
-    if (err) return res.json({
-      status: 'FAILED',
-      errors: [{ message: 'User not found.'}]
-    });
+  const sessionData = decryptData(decodedData.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
+
+  return UserModel.findOne({ _id: userId }, (error, user) => {
+    if (error) return resError400(res, constants.errors.INVALID_USER);
 
     const accessToken = user.coinbase.accessToken;
     const refreshToken = user.coinbase.refreshToken;
-    const userId = user.id;
 
-    const client = new Client({accessToken, refreshToken});
-    return client.getAccounts({}, (err, resp) => {
-      if (err) return res.json({ data: [] });
+    const client = new Client({ accessToken, refreshToken });
+    return client.getAccounts({}, (error, resp) => {
+      if (error) return resSuccess400(res, constants.errors.COINBASE_GENERAL_ERROR);
 
       //Foreach account get the transactions for purchasing more X coin
       return async.map(resp, (account, cb) => {
@@ -118,13 +120,12 @@ router.get('/overview', (req, res) => {
             });
 
         }, (err, data) => {
-          return res.json(data || {});
+          return resSuccess200(res, data);
         });
       });
     })
   });
 });
-
 
 
 /**
@@ -134,21 +135,17 @@ router.get('/list', (req, res) => {
   const jwt = utils.getJWT(req);
 
   let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return res.json({
-    status: 'RELOGIN_NEEDED'
-  });
+  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
 
-  const email = decodedData.data.email;
+  const sessionData = decryptData(decodedData.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
 
-  UserModel.findOne({ email }, (err, user) => {
-    if (err) return res.json({
-      status: 'FAILED',
-      errors: [{ message: 'User not found.'}]
-    });
+  UserModel.findOne({ _id: userId }, (error, user) => {
+    if (error) return resError400(res, constants.errors.INVALID_USER);
 
     const accessToken = user.coinbase.accessToken;
     const refreshToken = user.coinbase.refreshToken;
-    const userId = user.id;
 
     const client = new Client({ accessToken, refreshToken });
     return client.getAccounts({}, (err, resp) => {
@@ -202,7 +199,7 @@ router.get('/list', (req, res) => {
 
         }, (err, data) => {
           data = _.flattenDeep(data);
-          return res.json(data || {});
+          return resSuccess200(res, data)
         });
       });
     });

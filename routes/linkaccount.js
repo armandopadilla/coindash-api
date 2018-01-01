@@ -1,74 +1,56 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
-const qs = require('qs');
-const jwt = require('jsonwebtoken');
 
+const { decryptData } = require('../utils/crypto');
+const { resError400, resSuccess200 } = require('../utils/responseHandler');
 const UserModel = require('../schemas/users');
-const utils = require('../utils/utils');
+const { isValidJWT } = require('../utils/utils');
+const constants = require('../constants');
+const Coinbase = require('../services/coinbase');
 
+
+/**
+ * Link the account by using the code provided by coinbase.
+ *
+ */
 router.post('/coinbase', (req, res) => {
   const code = req.body.code || '';
   const state = req.body.state || '';
 
+  // Validate
+  if (!code) return resError400(res, constants.errors.INVALID_COINBASE_CODE);
+  if (!state) return resError400(res, constants.errors.INVALID_STATE);
+
   // Decrypt the state (contains the id of the user)
-  return jwt.verify(state, "REPLATETHISSOON", (err, decoded) => {
-    if (err) return res.json({ status: 'FAILED', errors: [{ message: err.message }] });
+  let jwt;
+  if (!(jwt = isValidJWT(state))) return resError400(res, constants.errors.INVALID_JWT);
 
-    const email = decoded.data.email;
+  const sessionData = decryptData(jwt.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
 
-    // Get the access token
-    const params = 'https://api.coinbase.com/oauth/token?'+qs.stringify({
-        grant_type: 'authorization_code',
-        code,
-        client_id: process.env.COINBASE_CLIENT_ID,
-        client_secret: process.env.COINBASE_CLIENT_SECRET,
-        redirect_uri: 'http://crypto-manager-web.s3-website-us-west-1.amazonaws.com/link-account',
-        score: 'wallet:accounts:read,wallet:transactions:read',
-        account: 'all'
-      });
-
-    return axios.post(params).
-      then(resp => {
-      const accessToken = resp.data.access_token;
-      const tokenType = resp.data.token_type;
-      const expiresIn = resp.data.expires_in;
-      const refreshToken = resp.data.refresh_token;
-      const scope = resp.data.scope;
-
-      console.log("accessToken", accessToken);
-      console.log("tokenType", tokenType);
-
-
-      const updateData = { coinbase: {
-        accessToken,
-        expiresIn,
-        refreshToken,
-        scope,
-        tokenType,
-        updatedDate: new Date()
+  return Coinbase.getAccessToken(code)
+    .then(resp => {
+      const updateData = {
+        coinbase: {
+          accessToken: resp.accessToken,
+          expiresIn: resp.expiresIn,
+          refreshToken: resp.refreshToken,
+          scope: resp.scope,
+          tokenType: resp.tokenType,
+          updatedDate: new Date()
         }
       };
 
       // Grab the accessToken and refreshToken and save to mongo
-      return UserModel.update({ email }, updateData ,
-        (err, user) => {
-          if (err) {
-            console.error(err);
-            return res.json({
-              status: 'FAILED',
-              errors: [ { message: 'Invalid user.'} ]
-            });
-          }
-          return res.json({
-            status: 'OK'
-          })
-        });
-
-    }).catch(err => console.error(err));
-
-  });
-
+      return UserModel.update({ _id: userId }, updateData, (error, user) => {
+        if (error) return resError400(res, error.message);
+        if (!user) return resError400(res, constants.errors.INVALID_USER);
+        console.log(user);
+        return resSuccess200(res);
+      });
+    })
+    .catch(error => resError400(res, error));
 });
 
 module.exports = router;

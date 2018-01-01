@@ -12,58 +12,76 @@
 
 const express = require('express');
 const router = express.Router();
-
 const UserModel = require('../schemas/users');
+const {
+  resSuccess200,
+  resError400
+} = require('../utils/responseHandler');
+const constants = require('../constants');
+const utils = require('../utils/utils');
+const {
+  decryptData
+} = require('../utils/crypto');
 
 /**
  * Fetch the user's settings
  * Settings:
  *  Levels - What the user feels a "on track" (green), "panic" (red) is
  *         - Note that warning is between the top values.
- *  TODO - Default Native Currency - Default is USD but the user can set it.
- *  TODO - Alerts
  */
 router.get('/', (req, res) => {
+
   const init = {
     investments: {
-      danger: 30,
-      onTrack: 60
+      danger: constants.levels.DANGER_DEFAULT,
+      onTrack: constants.levels.ONTRACK_DEFAULT
     }
   };
 
-  // TODO - Change this when we have more users.
-  return UserModel.findOne({firstName: 'Armando'}, (err, data) => {
-    if (!data) return res.json(init);
+  const jwt = utils.getJWT(req);
+
+  let decodedData;
+  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
+
+  const sessionData = decryptData(decodedData.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
+
+  return UserModel.findOne({ _id: userId }, (error, data) => {
+    if (!data) return resSuccess200(res, init);
 
     const danger = data.levels.danger;
     const onTrack = data.levels.onTrack;
 
-    return res.json({
-      investments: { danger, onTrack }
-    });
-
+    return resSuccess200(res, { investments: { danger, onTrack } });
   });
-})
+});
 
 
 /**
  * Update the settings for a user.
- * TODO - Update specific user.
  */
 router.put('/', (req, res) => {
+  const jwt = utils.getJWT(req);
+
+  let decodedData;
+  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
+
+  const sessionData = decryptData(decodedData.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
+
   const onTrack = req.body.onTrack;
   const danger = req.body.danger;
 
-  return UserModel.update({firstName: 'Armando'}, {$set: {
+  return UserModel.update({ _id: userId }, {$set: {
     'levels.onTrack': onTrack,
     'levels.danger': danger
-  } }, (err, data) => {
-    if (err) return res.json({ status: 'FAILED' });
-    return res.json({
-      status: 'SUCCESS'
-    })
+  } }, (error, data) => {
+    if (error) return resError400(res, error.message);
+    return resSuccess200(res);
   });
 
-})
+});
 
 module.exports = router;

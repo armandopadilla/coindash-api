@@ -40,12 +40,10 @@ app.use('/', index);
 app.use('/link-account', linkAccounts);
 
 app.get('/health', (req, res) => {
-  // Check we can talk to the net.
   const axios = require('axios');
   return axios.get('http://www.google.com').then(resp => {
     let status = 'FAILED';
     if (resp.status === 200) status = 'OK';
-    // Check we can talk to mongo
     res.json({ internetAccess: status });
   }).catch(err => console.error(err));
 })
