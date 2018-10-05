@@ -1,4 +1,5 @@
-require('dotenv').config()
+require('dotenv').config();
+
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -46,14 +47,14 @@ app.get('/health', (req, res) => {
     if (resp.status === 200) status = 'OK';
     res.json({ internetAccess: status });
   }).catch(err => console.error(err));
-})
+});
 
-module.exports.handler = serverless(app);
+//module.exports.handler = serverless(app);
 
-/*
+
 app.listen(3000, () => {
   console.log("Lets roll on port 3000!......");
-});*/
+});
 
 
 // API

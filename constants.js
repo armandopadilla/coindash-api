@@ -24,7 +24,7 @@ module.exports = {
     COINBASE_GENERAL_ERROR: 'Coinbase encountered a problem.',
     EXPIRED_JWT: 'Session has expired,'
   },
-  webURL: 'http://crypto-manager-web.s3-website-us-west-1.amazonaws.com',
+  webURL: 'http://d198gdf9d0rmcz.cloudfront.net',
   exchanges: {
     coinbase: {
       oauthURL: 'https://www.coinbase.com/oauth/authorize',

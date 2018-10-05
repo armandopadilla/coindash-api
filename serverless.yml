@@ -1,9 +1,9 @@
-service: "crypto-api2"
+service: "crypto-api"
 provider:
   name: aws
   runtime: nodejs6.10
   stage: dev
-  regions: us-east
+  regions: us-west-1
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -12,12 +12,12 @@ provider:
         - "ec2:DetachNetworkInterface"
         - "ec2:DeleteNetworkInterface"
       Resource: "*"
-  vpc:
-    securityGroupIds:
-      - sg-2b29de5f
-    subnetIds:
-      - subnet-f50c8cda
-      - subnet-b13d73fa
+  #vpc:
+  #  securityGroupIds:
+  #    - sg-2b29de5f
+  #  subnetIds:
+  #    - subnet-f50c8cda
+  #    - subnet-b13d73fa
 
 functions:
   app:
