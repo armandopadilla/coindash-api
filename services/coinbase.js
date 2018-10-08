@@ -24,6 +24,7 @@ const getAccessToken = (code) => {
         account: 'all'
       });
 
+    console.log("here")
     return axios.post(params)
       .then(resp => {
         if (!resp.data.access_token) return reject(constants.errors.COINBASE_GENERAL_ERROR);
@@ -36,7 +37,6 @@ const getAccessToken = (code) => {
           scope
         } = resp.data;
 
-        console.log(resp);
         return resolve({
           accessToken,
           tokenType,
@@ -45,7 +45,10 @@ const getAccessToken = (code) => {
           scope
         })
       })
-      .catch(error => reject(error.message));
+      .catch(error => {
+        console.log(error);
+        reject(error.message)
+      });
   });
 };
 

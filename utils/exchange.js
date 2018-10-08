@@ -1,8 +1,8 @@
 const Client = require('coinbase').Client;
 
 const client = new Client({
-  'apiKey': process.env.COINBASE_APIKEY,
-  'apiSecret': process.env.COINBASE_APISECRET
+  'apiKey': process.env.COINBASE_CLIENT_ID,
+  'apiSecret': process.env.COINBASE_CLIENT_SECRET
 });
 
 

@@ -24,10 +24,10 @@ router.post('/coinbase', (req, res) => {
   // Decrypt the state (contains the id of the user)
   let jwt;
   if (!(jwt = isValidJWT(state))) return resError400(res, constants.errors.INVALID_JWT);
-
   const sessionData = decryptData(jwt.data);
   const sessionJSON = JSON.parse(sessionData);
   const userId = sessionJSON.id;
+  console.log("userId", userId);
 
   return Coinbase.getAccessToken(code)
     .then(resp => {
@@ -46,7 +46,6 @@ router.post('/coinbase', (req, res) => {
       return UserModel.update({ _id: userId }, updateData, (error, user) => {
         if (error) return resError400(res, error.message);
         if (!user) return resError400(res, constants.errors.INVALID_USER);
-        console.log(user);
         return resSuccess200(res);
       });
     })

@@ -101,9 +101,16 @@ router.post('/login', (req, res) => {
     }
     // If it is set then refresh the token.
     else if(user.coinbase) {
+      console.log("i have data");
       return ExchangeService.refreshAccessToken('coinbase', user.id, user.coinbase.refreshToken)
-        .then(() => resSuccess200(res, { toCoinbase, token }))
-        .catch(error => resError400(res, error.message));
+        .then(() => {
+          console.log("here ??")
+          resSuccess200(res, { toCoinbase, token })
+        })
+        .catch(error => {
+          console.log("there ??", error);
+          resError400(res, error.message)
+        });
     }
     else {
       return resError400(res, constants.errors.INVALID_USER);
