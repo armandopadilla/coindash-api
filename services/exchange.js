@@ -24,9 +24,7 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
         client_id: process.env.COINBASE_CLIENT_ID,
-        client_secret: process.env.COINBASE_CLIENT_SECRET,
-        scope: constants.exchanges.coinbase.scope,
-        account: 'all'
+        client_secret: process.env.COINBASE_CLIENT_SECRET
       });
 
     console.log("what to call", params);

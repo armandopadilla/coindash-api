@@ -32,4 +32,4 @@ module.exports = {
       scope: 'wallet:accounts:read,wallet:transactions:read'
     }
   }
-}
+};
