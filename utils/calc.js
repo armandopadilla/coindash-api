@@ -160,7 +160,6 @@ const getTransactionPercentDiff = (currentCoinBalance, initInvestment) =>
     return resolve(perDiff);
   });
 
-
 /**
  * Calculate the difference for 1 transaction.
  *
@@ -170,6 +169,7 @@ const getTransactionPercentDiff = (currentCoinBalance, initInvestment) =>
  */
 const getTransactionDiff = (currentCoinBalance, initInvestment) =>
   new Promise((resolve, reject) => resolve(currentCoinBalance - initInvestment));
+
 
 
 /**
@@ -190,6 +190,10 @@ const getTransactionLevel = (userId, percentDiff) => new Promise((resolve, rejec
   })
 });
 
+const getCoinPrice = (amountNative, amountOfCoinPurchased) => {
+  return amountNative/amountOfCoinPurchased;
+};
+
 module.exports = {
   getTotalInvested,
   getTotalCoins,
@@ -199,6 +203,7 @@ module.exports = {
   getTransactionCurrentBalance,
   getTransactionPercentDiff,
   getTransactionDiff,
-  getTransactionLevel
+  getTransactionLevel,
+  getCoinPrice,
 };
 

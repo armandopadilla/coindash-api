@@ -27,7 +27,6 @@ router.post('/coinbase', (req, res) => {
   const sessionData = decryptData(jwt.data);
   const sessionJSON = JSON.parse(sessionData);
   const userId = sessionJSON.id;
-  console.log("userId", userId);
 
   return Coinbase.getAccessToken(code)
     .then(resp => {

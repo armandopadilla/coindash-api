@@ -21,6 +21,7 @@ const investments = require('./routes/investments');
 const settings = require('./routes/settings');
 const index = require('./routes/index');
 const linkAccounts = require('./routes/linkaccount');
+const exchange = require('./routes/exchange');
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/investments', investments);
 app.use('/settings', settings);
 app.use('/', index);
 app.use('/link-account', linkAccounts);
+app.use('/exchange', exchange);
 
 app.get('/health', (req, res) => {
   const axios = require('axios');

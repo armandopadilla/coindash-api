@@ -5,6 +5,7 @@ const async = require('async');
 const _ = require('lodash');
 
 const UserModel = require('../schemas/users');
+const TransactionModel = require('../schemas/transactions');
 const utils = require('../utils/utils');
 const { decryptData } = require('../utils/crypto');
 const {
@@ -21,8 +22,13 @@ const {
   getTransactionDiff,
   getTransactionPercentDiff,
   getTransactionCurrentBalance,
-  getTransactionLevel
+  getTransactionLevel,
+  getCoinPrice,
 } = require('../utils/calc');
+
+const {
+  getExchangeRates
+} = require('../utils/exchange')
 
 const Client = require('coinbase').Client;
 
@@ -159,11 +165,21 @@ router.get('/list', (req, res) => {
           return async.map(trans, (t, cb2) => {
 
             if (t.type !== 'buy') return cb2();
+
+            const exchangeId = t.id;
+            const exchange = 'coinbase';
+
+            // coin amounts
             const currency = t.amount.currency;
-            const amount = t.amount.amount;
+            const amountPurchased = t.amount.amount;
+
+            // how much I bought the above amount for.
+            const amount = t.native_amount.amount;
+            const boughtAt = getCoinPrice(amount, amountPurchased);
+
             let lclCurrentBalance, lclDifference, lclPercentDiff;
 
-            return getTransactionCurrentBalance(currency, amount)
+            return getTransactionCurrentBalance(currency, amountPurchased)
               .then(currentBalance => {
                 lclCurrentBalance = currentBalance;
                 return getTransactionDiff(currentBalance, t.native_amount.amount)
@@ -177,19 +193,39 @@ router.get('/list', (req, res) => {
                 return getTransactionLevel(userId, lclPercentDiff)
               })
               .then(level => {
-                return cb2(null, {
-                  id: t.id,
-                  type: t.type,
-                  status: t.status,
+
+                // Add to the DB.
+                TransactionModel.findOneAndUpdate({
+                  exchange,
+                  exchangeId
+                }, {
+                  userId,
+                  transactionDate: t.created_at,
+                  nativeAmountBought: amount,
                   currency: currency,
-                  amount: amount,
-                  nativeAmount: t.native_amount.amount,
-                  createdAt: t.created_at,
-                  currentBalance: lclCurrentBalance,
-                  difference: lclDifference,
-                  percentDifference: lclPercentDiff,
-                  level
-                });
+                  currencyAmountBought: amountPurchased,
+                  status: 'live',
+                  currencyAmountBoughtAt: boughtAt,
+                  earned: lclDifference,
+                },  {upsert:true})
+                  .then(() => {
+
+                    return cb2(null, {
+                      id: t.id,
+                      type: t.type,
+                      status: t.status,
+                      currency: currency,
+                      amount: amountPurchased,
+                      nativeAmount: t.native_amount.amount,
+                      createdAt: t.created_at,
+                      currentBalance: lclCurrentBalance,
+                      difference: lclDifference,
+                      percentDifference: lclPercentDiff,
+                      boughtAt,
+                      level
+                    });
+
+                  }).catch(error => console.log(error));
               })
 
           }, (err, data2) => {
@@ -207,5 +243,115 @@ router.get('/list', (req, res) => {
   });
 });
 
+
+/**
+ *  // Update the transaction locally.
+
+
+ // You know this works for all transactions that were done within the system.
+ // What about historical transactions?  Need to think about that.
+ // This is were the price of the coin comes in.
+
+
+ // Historical Transactions. (import)
+ // Grab all the transactions
+ // Grab all the sold transactions
+ // For each
+
+
+ // Transactions within the system
+ // Send a signal to X to sell NOW
+ // Get the current balance
+ // Update the record to "sold" (this should hide the transaction)
+ // If balance is in positive territory place into the earnings bucket.
+ */
+router.post('/sell', (req, res) => {
+  const jwt = utils.getJWT(req);
+
+  let decodedData;
+  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
+
+  const sessionData = decryptData(decodedData.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
+
+  const transactionId = req.param('transactionId');
+
+  console.log(transactionId);
+
+  let currencySoldAt = '';
+  let soldDate = '';
+  let soldAmount = '';
+
+  return TransactionModel.findOne({
+    _id: transactionId,
+    status: 'live'
+  }).then(result => {
+    if (!result) return resSuccess200(res, {});
+
+    console.log(result);
+
+    // Get the current Rate
+    // set to sold
+    // set the date
+    // for now we assume that we sell all.
+    const currency = result.currency;
+    const nativeCurrency = result.nativeCurrency;
+
+    return getExchangeRates(currency, nativeCurrency)
+      .then(rate => {
+        return TransactionModel.update({ _id: transactionId }, { $set: {
+          status: 'sold',
+          currencySoldAt: rate,
+          soldDate: new Date()
+        }})
+          .then(results => {
+            if (results.nModified > 1) return resSuccess200(res, {});
+            else return resSuccess200(res, {});
+          })
+          .catch(error => {
+            console.log('error', error);
+            return resSuccess200(res, data)
+          })
+      }).catch(error => {
+        console.log('error', error);
+        return resSuccess200(res, data);
+      });
+  });
+});
+
+// Get the bucket of positive investments that the site helped the user achieve.
+// This closes the loop and demostrates how the system helps the user.  By helping the user track
+// each transactoin I can help them track individual investments.
+router.get('/earnings', (req, res) => {
+  const jwt = utils.getJWT(req);
+
+  let decodedData;
+  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
+
+  const sessionData = decryptData(decodedData.data);
+  const sessionJSON = JSON.parse(sessionData);
+  const userId = sessionJSON.id;
+
+  return TransactionModel.aggregate({
+    $match: {
+      userId,
+      status: "sold",
+    }
+  }, {
+    $group: {
+      _id: "$currency",
+      total: { $sum: "$earned" }
+    }
+  }).then(results => {
+    return resSuccess200(res, results);
+  }).catch(error => {
+    console.log("error", error);
+    return resSuccess200(res, [])
+  });
+
+});
+
+// Unique ID - exchange id, exchange,
 
 module.exports = router;
