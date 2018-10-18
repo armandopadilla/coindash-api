@@ -32,4 +32,6 @@ router.get('/', (req, res) => {
 
 });
 
+router.get('/rates', () => {})
+
 module.exports = router;

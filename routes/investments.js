@@ -92,6 +92,7 @@ router.get('/overview', (req, res) => {
 
           return getBalance(currency, transactions)
             .then(balance => {
+              console.log("balance", balance);
               lclBalance = balance;
               return getDifference(currency, transactions);
             })
@@ -164,7 +165,7 @@ router.get('/list', (req, res) => {
         return async.map(results, (trans, cb1) => {
           return async.map(trans, (t, cb2) => {
 
-            if (t.type !== 'buy') return cb2();
+            if (t.type !== 'buy' || t.amount.currency === 'USD') return cb2();
 
             const exchangeId = t.id;
             const exchange = 'coinbase';
@@ -222,7 +223,8 @@ router.get('/list', (req, res) => {
                       difference: lclDifference,
                       percentDifference: lclPercentDiff,
                       boughtAt,
-                      level
+                      level,
+                      exchange
                     });
 
                   }).catch(error => console.log(error));
@@ -235,7 +237,23 @@ router.get('/list', (req, res) => {
 
         }, (err, data) => {
           data = _.flattenDeep(data);
-          return resSuccess200(res, data)
+
+          // Get the exchange rate
+          return async.parallel({
+            ETC: (cb) => getExchangeRates('ETC').then(rates => cb(null, rates)),
+            BCH: (cb) => getExchangeRates('BCH').then(rates => cb(null, rates)),
+            BTC: (cb) => getExchangeRates('BTC').then(rates => cb(null, rates)),
+            LTC: (cb) => getExchangeRates('LTC').then(rates => cb(null, rates)),
+            ETH: (cb) => getExchangeRates('ETH').then(rates => cb(null, rates)),
+          }, (err, rates) => {
+
+            data.forEach(d => {
+              d.currentRate = rates[d.currency]
+            });
+
+            return resSuccess200(res, data)
+
+          });
         });
       });
     });

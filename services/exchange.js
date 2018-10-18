@@ -15,9 +15,9 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
     if (!exchange) return reject(constants.errors.EXCHANGE_NOT_SET);
     if (!userId) return reject(constants.errors.USER_ID_NOT_SET);
 
-    console.log("exchange", exchange)
-    console.log("userId", userId)
-    console.log("refreshToken", refreshToken)
+    ///console.log("exchange", exchange)
+    //console.log("userId", userId)
+    //console.log("refreshToken", refreshToken)
 
     // Refresh the token
     const params = constants.exchanges.coinbase.oauthTokenURL+'?'+qs.stringify({
