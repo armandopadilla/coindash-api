@@ -49,14 +49,7 @@ const Client = require('coinbase').Client;
  *
  */
 router.get('/overview', (req, res) => {
-  const jwt = utils.getJWT(req);
-
-  let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
-
-  const sessionData = decryptData(decodedData.data);
-  const sessionJSON = JSON.parse(sessionData);
-  const userId = sessionJSON.id;
+  const userId = utils.getJWTData(res, req).id;
 
   return UserModel.findOne({ _id: userId }, (error, user) => {
     if (error) return resError400(res, constants.errors.INVALID_USER);
@@ -68,70 +61,14 @@ router.get('/overview', (req, res) => {
     return client.getAccounts({}, (error, resp) => {
       if (error) return resSuccess400(res, constants.errors.COINBASE_GENERAL_ERROR);
 
-      //Foreach account get the transactions for purchasing more X coin
-      return async.map(resp, (account, cb) => {
-        account.getTransactions({}, (err, transResp) => {
-          if (err) return cb(null);
+      const portfolios = resp.map((portfolio) => ({
+          currency: portfolio.currency.code,
+          currencyName: portfolio.currency.name,
+          balance: portfolio.balance.amount
+        }
+      ));
 
-          const data = {
-            id: account.id,
-            name: account.name,
-            currency: account.currency.code,
-            coinBalance: account.balance,
-            nativeBalance: account.native_balance,
-            transactions: transResp
-          };
-
-          cb(null, data);
-        });
-      }, (err, results) => {
-
-        // Do Calculations
-        return async.map(results, (account, cb) => {
-          const currency = account.currency;
-          const transactions = account.transactions || [];
-          let lclBalance, lclDiff, lclPerDiff, lclTotalInvested, lclTotalCoins;
-
-          return getBalance(currency, transactions)
-            .then(balance => {
-              console.log("balance", balance);
-              lclBalance = balance;
-              return getDifference(currency, transactions);
-            })
-            .then(difference => {
-              lclDiff = difference;
-              return getPercentDifference(currency, transactions)
-            })
-            .then((percentDifference) => {
-              lclPerDiff = percentDifference;
-              return getTotalInvested(transactions)
-            })
-            .then((totalInvested) => {
-              lclTotalInvested = totalInvested;
-              return getTotalCoins(transactions);
-            })
-            .then(totalCoins => {
-              lclTotalCoins = totalCoins;
-              return getTransactionLevel(userId, lclPerDiff);
-            })
-            .then(level => {
-              const investment = {
-                currency: currency,
-                totalInvested: lclTotalInvested,
-                totalCoins: lclTotalCoins,
-                balance: lclBalance,
-                difference: lclDiff,
-                percentDifference: lclPerDiff,
-                level
-              };
-
-              return cb(null, investment);
-            });
-
-        }, (err, data) => {
-          return resSuccess200(res, data);
-        });
-      });
+      return resSuccess200(res, portfolios);
     })
   });
 });
