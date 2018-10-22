@@ -28,7 +28,9 @@ const {
 
 const {
   getExchangeRates
-} = require('../utils/exchange')
+} = require('../utils/exchange');
+
+const constants = require('../constants');
 
 const Client = require('coinbase').Client;
 
@@ -139,14 +141,7 @@ router.get('/overview', (req, res) => {
  * This might be transactions instead of investments.
  */
 router.get('/list', (req, res) => {
-  const jwt = utils.getJWT(req);
-
-  let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
-
-  const sessionData = decryptData(decodedData.data);
-  const sessionJSON = JSON.parse(sessionData);
-  const userId = sessionJSON.id;
+  const userId = utils.getJWTData(res, req).id;
 
   UserModel.findOne({ _id: userId }, (error, user) => {
     if (error) return resError400(res, constants.errors.INVALID_USER);
@@ -195,7 +190,7 @@ router.get('/list', (req, res) => {
               })
               .then(level => {
 
-                // Add to the DB.
+                // Add to the DB if its not marked as sold
                 TransactionModel.findOneAndUpdate({
                   exchange,
                   exchangeId
@@ -205,7 +200,6 @@ router.get('/list', (req, res) => {
                   nativeAmountBought: amount,
                   currency: currency,
                   currencyAmountBought: amountPurchased,
-                  status: 'live',
                   currencyAmountBoughtAt: boughtAt,
                   earned: lclDifference,
                 },  {upsert:true})
@@ -214,7 +208,6 @@ router.get('/list', (req, res) => {
                     return cb2(null, {
                       id: t.id,
                       type: t.type,
-                      status: t.status,
                       currency: currency,
                       amount: amountPurchased,
                       nativeAmount: t.native_amount.amount,
@@ -284,25 +277,15 @@ router.get('/list', (req, res) => {
  // If balance is in positive territory place into the earnings bucket.
  */
 router.post('/sell', (req, res) => {
-  const jwt = utils.getJWT(req);
-
-  let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
-
-  const sessionData = decryptData(decodedData.data);
-  const sessionJSON = JSON.parse(sessionData);
-  const userId = sessionJSON.id;
-
+  const userId = utils.getJWTData(res, req).id;
   const transactionId = req.param('transactionId');
-
-  console.log(transactionId);
 
   let currencySoldAt = '';
   let soldDate = '';
   let soldAmount = '';
 
   return TransactionModel.findOne({
-    _id: transactionId,
+    exchangeId: transactionId,
     status: 'live'
   }).then(result => {
     if (!result) return resSuccess200(res, {});
@@ -318,7 +301,7 @@ router.post('/sell', (req, res) => {
 
     return getExchangeRates(currency, nativeCurrency)
       .then(rate => {
-        return TransactionModel.update({ _id: transactionId }, { $set: {
+        return TransactionModel.update({ exchangeId: transactionId }, { $set: {
           status: 'sold',
           currencySoldAt: rate,
           soldDate: new Date()
@@ -335,6 +318,9 @@ router.post('/sell', (req, res) => {
         console.log('error', error);
         return resSuccess200(res, data);
       });
+  }).catch(error => {
+    console.log('error', error);
+    return resSuccess200(res, error)
   });
 });
 
@@ -342,14 +328,7 @@ router.post('/sell', (req, res) => {
 // This closes the loop and demostrates how the system helps the user.  By helping the user track
 // each transactoin I can help them track individual investments.
 router.get('/earnings', (req, res) => {
-  const jwt = utils.getJWT(req);
-
-  let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
-
-  const sessionData = decryptData(decodedData.data);
-  const sessionJSON = JSON.parse(sessionData);
-  const userId = sessionJSON.id;
+  const userId = utils.getJWTData(res, req).id;
 
   return TransactionModel.aggregate({
     $match: {
@@ -362,9 +341,11 @@ router.get('/earnings', (req, res) => {
       total: { $sum: "$earned" }
     }
   }).then(results => {
+    results.forEach(result => {
+      result.total = (result.total < 0) ? 0.00 : results.total;
+    });
     return resSuccess200(res, results);
   }).catch(error => {
-    console.log("error", error);
     return resSuccess200(res, [])
   });
 

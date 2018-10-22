@@ -24,7 +24,6 @@ const getAccessToken = (code) => {
         account: 'all'
       });
 
-    console.log("here")
     return axios.post(params)
       .then(resp => {
         if (!resp.data.access_token) return reject(constants.errors.COINBASE_GENERAL_ERROR);

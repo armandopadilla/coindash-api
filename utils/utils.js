@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const constants = require('../constants');
+const { decryptData } = require('./crypto');
 
 /**
  * Get the JWT from the header.
@@ -31,8 +33,18 @@ const isValidJWT = (jwtData) => {
   });
 };
 
+const getJWTData = (res, req) => {
+  const jwt = getJWT(req);
+
+  let decodedData;
+  if (!(decodedData = isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
+
+  const sessionData = decryptData(decodedData.data);
+  return JSON.parse(sessionData);
+}
 
 module.exports = {
   getJWT,
+  getJWTData,
   isValidJWT
 };

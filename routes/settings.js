@@ -38,14 +38,7 @@ router.get('/', (req, res) => {
     }
   };
 
-  const jwt = utils.getJWT(req);
-
-  let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
-
-  const sessionData = decryptData(decodedData.data);
-  const sessionJSON = JSON.parse(sessionData);
-  const userId = sessionJSON.id;
+  const userId = utils.getJWTData(res, req).id;
 
   return UserModel.findOne({ _id: userId }, (error, data) => {
     if (!data) return resSuccess200(res, init);
@@ -62,15 +55,7 @@ router.get('/', (req, res) => {
  * Update the settings for a user.
  */
 router.put('/', (req, res) => {
-  const jwt = utils.getJWT(req);
-
-  let decodedData;
-  if (!(decodedData = utils.isValidJWT(jwt))) return resError400(res, constants.errors.EXPIRED_JWT);
-
-  const sessionData = decryptData(decodedData.data);
-  const sessionJSON = JSON.parse(sessionData);
-  const userId = sessionJSON.id;
-
+  const userId = utils.getJWTData(res, req).id;
   const onTrack = req.body.onTrack;
   const danger = req.body.danger;
 

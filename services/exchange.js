@@ -15,10 +15,6 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
     if (!exchange) return reject(constants.errors.EXCHANGE_NOT_SET);
     if (!userId) return reject(constants.errors.USER_ID_NOT_SET);
 
-    ///console.log("exchange", exchange)
-    //console.log("userId", userId)
-    //console.log("refreshToken", refreshToken)
-
     // Refresh the token
     const params = constants.exchanges.coinbase.oauthTokenURL+'?'+qs.stringify({
         grant_type: 'refresh_token',
@@ -27,10 +23,8 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
         client_secret: process.env.COINBASE_CLIENT_SECRET
       });
 
-    console.log("what to call", params);
     return axios.post(params)
       .then(resp => {
-        console.log("refresh_token resp", resp);
         const {
           access_token: accessToken,
           token_type: tokenType,
@@ -53,7 +47,6 @@ const refreshAccessToken = (exchange, userId, refreshToken) => {
         // save it to the db.
         return UserModel.update({ _id: userId }, updateData, (error, user) => {
           if (error) return reject(constants.errors.INVALID_USER);
-          console.log(user);
           return resolve();
         });
       }).catch(error => reject(error.message));
