@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "deploy:dev": "serverless config credentials --provider \"aws\" --key AKIAJN665HU6M7YBGSMA --secret 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 | serverless deploy -v",
+    "deploy:dev": "serverless config credentials --provider \"aws\" --key  --secret | serverless deploy -v",
     "start:dev": "./node_modules/.bin/nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
